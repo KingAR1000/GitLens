@@ -1,7 +1,7 @@
 # GitLens
 
 # 🤝 Contributing
-Contributions are welcome! If you'd like to improve the UI or add new features (like Chart.js integration for language stats):
+Contributions are welcome! If you'd like to improve the UI or add new features:
 
 1.	Fork the Project
 
