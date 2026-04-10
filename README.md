@@ -9,4 +9,5 @@ Contributions are welcome! If you'd like to improve the UI, add new features or 
 
 # 📄 License
 Distributed under the MIT License. See LICENSE for more information.
+
 Developed with ❤️ for the open-source community.
