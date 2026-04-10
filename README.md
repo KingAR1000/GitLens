@@ -2,6 +2,8 @@
 
 GitLens is an open-source tool for retrieving information from GitHub accounts.
 
+[Visit GitLens](https://gitlens.vercel.app)
+
 # 🤝 Contributing
 Contributions are welcome! If you'd like to improve the UI or add new features.
 
