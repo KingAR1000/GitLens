@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GitLens</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --bg-main: #0a0c10;
+            --bg-card: #12151c;
+            --border-color: #262c36;
+            --accent-blue: #3b82f6;
+            --text-secondary: #94a3b8;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-main);
+            color: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        @media (min-width: 1024px) {
+            .app-layout {
+                flex-direction: row;
+            }
+            .sidebar {
+                width: 320px;
+                height: 100vh;
+                position: fixed;
+                left: 0;
+                top: 0;
+                border-right: 1px solid var(--border-color);
+                overflow-y: auto;
+            }
+            .main-content {
+                margin-left: 320px;
+                width: calc(100% - 320px);
+            }
+        }
+
+        .content-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            height: 100%;
+            display: block; /* Ensure the link wraps properly */
+        }
+
+        .content-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+            background: #161a23;
+        }
+
+        .search-input {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .nav-tab {
+            position: relative;
+            padding: 12px 4px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-tab.active {
+            color: var(--accent-blue);
+        }
+
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent-blue);
+            border-radius: 2px;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-0 m-0">
+
+    <div class="app-layout">
+        <aside class="sidebar w-full bg-[#12151c] p-6 lg:p-8 z-20 border-b lg:border-b-0 border-[#262c36]">
+            <div class="flex items-center gap-3 mb-8 lg:mb-10">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+                    <i class="fa-brands fa-github text-white text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">GitLens</h1>
+            </div>
+
+            <div class="space-y-6">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="text" id="usernameInput" placeholder="Enter username..." 
+                           class="search-input w-full pl-12 pr-4 py-3 rounded-xl outline-none text-sm font-medium focus:ring-2 focus:ring-blue-500/20">
+                </div>
+
+                <div id="sidebarContent" class="hidden animate-in fade-in duration-700">
+                    <div class="text-center pt-4 lg:pt-0">
+                        <a id="userProfileLink" target="_blank" class="inline-block group cursor-pointer">
+                            <img id="userAvatar" src="" class="w-24 h-24 lg:w-32 lg:h-32 rounded-3xl mx-auto mb-4 object-cover shadow-2xl border border-slate-700 group-hover:border-blue-500 transition-colors">
+                            <h2 id="userName" class="text-xl font-bold group-hover:text-blue-400 transition-colors"></h2>
+                            <p id="userLogin" class="text-blue-500 text-sm font-medium mb-4"></p>
+                        </a>
+                        <p id="userBio" class="text-slate-400 text-sm leading-relaxed mb-6 px-2"></p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-8">
+                        <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 text-center">
+                            <span class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Followers</span>
+                            <span id="userFollowers" class="text-base lg:text-lg font-bold">0</span>
+                        </div>
+                        <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50 text-center">
+                            <span class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Following</span>
+                            <span id="userFollowing" class="text-base lg:text-lg font-bold">0</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 text-sm text-slate-400">
+                        <div id="userLocation" class="flex items-center gap-3"><i class="fa-solid fa-location-dot w-4 text-slate-500"></i> <span></span></div>
+                        <div id="userEmail" class="flex items-center gap-3"><i class="fa-solid fa-envelope w-4 text-slate-500"></i> <a class="hover:text-blue-400 truncate"></a></div>
+                        <div id="userBlog" class="flex items-center gap-3"><i class="fa-solid fa-link w-4 text-slate-500"></i> <a class="hover:text-blue-400 truncate" target="_blank"></a></div>
+                        <div id="userTwitter" class="flex items-center gap-3"><i class="fa-brands fa-x-twitter w-4 text-slate-500"></i> <a class="hover:text-blue-400 truncate" target="_blank"></a></div>
+                        <div id="userSocials" class="flex flex-col gap-3"></div>
+                        
+                        <div id="userOrgs" class="pt-6 border-t border-slate-800">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-4">Public Organizations</span>
+                            <div id="orgsList" class="flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="sidebarEmpty" class="text-center py-10 lg:py-20">
+                    <i class="fa-solid fa-user-astronaut text-4xl text-slate-800 mb-4"></i>
+                    <p class="text-slate-500 text-sm px-4">Search for a developer to see their public portfolio analytics.</p>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content flex-1 p-6 lg:p-12">
+            <div id="mainContent" class="hidden">
+                <header class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 lg:mb-12">
+                    <div>
+                        <h3 class="text-slate-500 text-[10px] font-bold uppercase tracking-widest mb-1">Activity Dashboard</h3>
+                        <h2 class="text-2xl lg:text-3xl font-bold">Public Contributions</h2>
+                    </div>
+                    <nav class="flex gap-6 border-b border-slate-800 lg:border-none overflow-x-auto hide-scrollbar">
+                        <button onclick="switchTab('repos')" id="tab-repos" class="nav-tab active">Repositories</button>
+                        <button onclick="switchTab('activity')" id="tab-activity" class="nav-tab">Live Events</button>
+                        <button onclick="switchTab('gists')" id="tab-gists" class="nav-tab">Public Gists</button>
+                    </nav>
+                </header>
+
+                <div id="content-repos" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 animate-in slide-in-from-bottom duration-500"></div>
+                <div id="content-activity" class="hidden space-y-4 animate-in slide-in-from-bottom duration-500"></div>
+                <div id="content-gists" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-6 animate-in slide-in-from-bottom duration-500"></div>
+            </div>
+
+            <div id="welcomeScreen" class="min-h-[60vh] flex flex-col items-center justify-center text-center max-w-xl mx-auto px-4">
+                <div class="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mb-8">
+                    <i class="fa-solid fa-bolt text-3xl text-blue-500"></i>
+                </div>
+                <h1 class="text-3xl lg:text-4xl font-bold mb-4">Professional GitHub Explorer</h1>
+                <p class="text-slate-400 leading-relaxed text-sm lg:text-base">Enter a username to analyze their open-source footprint. GitLens pulls repositories, events, and gists in real-time using public APIs.</p>
+            </div>
+
+            <div id="loadingState" class="hidden space-y-12">
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div class="h-48 skeleton rounded-2xl"></div>
+                    <div class="h-48 skeleton rounded-2xl"></div>
+                    <div class="h-48 skeleton rounded-2xl"></div>
+                </div>
+                <div class="space-y-4">
+                    <div class="h-16 skeleton rounded-xl w-full"></div>
+                    <div class="h-16 skeleton rounded-xl w-full"></div>
+                    <div class="h-16 skeleton rounded-xl w-full"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="errorToast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-4 rounded-2xl shadow-2xl z-[100] transform translate-y-40 transition-transform duration-300 flex items-center gap-3 w-[90%] max-w-sm">
+        <i class="fa-solid fa-circle-exclamation text-xl"></i>
+        <div class="flex-1">
+            <p class="text-sm font-bold">Request Failed</p>
+            <p id="errorMessage" class="text-xs opacity-90">User not found</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "https://api.github.com";
+
+        async function fetchGitHubData() {
+            const usernameInput = document.getElementById('usernameInput');
+            const username = usernameInput.value.trim();
+            if (!username) return;
+
+            usernameInput.blur();
+            showLoading(true);
+
+            try {
+                const user = await githubAPI(`/users/${username}`);
+                const [repos, orgs, events, gists, socials] = await Promise.all([
+                    githubAPI(`/users/${username}/repos?sort=updated&per_page=12`),
+                    githubAPI(`/users/${username}/orgs`),
+                    githubAPI(`/users/${username}/events/public?per_page=30`),
+                    githubAPI(`/users/${username}/gists?per_page=12`),
+                    githubAPI(`/users/${username}/social_accounts`)
+                ]);
+
+                renderDashboard(user, repos, orgs, events, gists, socials);
+                showLoading(false);
+                
+                if(window.innerWidth < 1024) {
+                    document.getElementById('mainContent').scrollIntoView({ behavior: 'smooth' });
+                }
+            } catch (err) {
+                const msg = err.message.includes("404") ? "User profile not found." : "API rate limit reached. Try again later.";
+                showError(msg);
+                showLoading(false);
+            }
+        }
+
+        async function githubAPI(endpoint) {
+            const res = await fetch(`${API_BASE}${endpoint}`);
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            return await res.json();
+        }
+
+        function renderDashboard(user, repos, orgs, events, gists, socials) {
+            document.getElementById('welcomeScreen').classList.add('hidden');
+            document.getElementById('sidebarEmpty').classList.add('hidden');
+            document.getElementById('sidebarContent').classList.remove('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+
+            // Set profile link and sidebar info
+            document.getElementById('userProfileLink').href = user.html_url;
+            document.getElementById('userAvatar').src = user.avatar_url;
+            document.getElementById('userName').innerText = user.name || user.login;
+            document.getElementById('userLogin').innerText = `@${user.login}`;
+            document.getElementById('userBio').innerText = user.bio || "";
+            document.getElementById('userFollowers').innerText = formatCount(user.followers);
+            document.getElementById('userFollowing').innerText = formatCount(user.following);
+
+            const displayField = (id, val, text, linkPrefix) => {
+                const el = document.getElementById(id);
+                if (val) {
+                    el.classList.remove('hidden');
+                    const label = el.querySelector('span') || el.querySelector('a');
+                    label.innerText = text || val;
+                    if (el.querySelector('a')) {
+                        const link = el.querySelector('a');
+                        if (linkPrefix === 'mailto:') {
+                            link.href = `mailto:${val}`;
+                        } else {
+                            link.href = val.startsWith('http') ? val : `https://${val}`;
+                        }
+                    }
+                } else {
+                    el.classList.add('hidden');
+                }
+            };
+
+            displayField('userLocation', user.location);
+            displayField('userEmail', user.email, user.email, 'mailto:');
+            displayField('userBlog', user.blog);
+            displayField('userTwitter', user.twitter_username, `@${user.twitter_username}`, 'https://twitter.com/');
+
+            // Render Social Accounts
+            const socialsContainer = document.getElementById('userSocials');
+            socialsContainer.innerHTML = '';
+            if (socials && socials.length > 0) {
+                socials.forEach(social => {
+                    const iconClass = social.provider === 'linkedin' ? 'fa-brands fa-linkedin' : 
+                                    social.provider === 'youtube' ? 'fa-brands fa-youtube' :
+                                    social.provider === 'facebook' ? 'fa-brands fa-facebook' :
+                                    'fa-solid fa-share-nodes';
+                    
+                    const socialItem = document.createElement('div');
+                    socialItem.className = 'flex items-center gap-3';
+                    socialItem.innerHTML = `
+                        <i class="${iconClass} w-4 text-slate-500"></i>
+                        <a href="${social.url}" target="_blank" class="hover:text-blue-400 truncate capitalize">${social.provider}</a>
+                    `;
+                    socialsContainer.appendChild(socialItem);
+                });
+            }
+
+            const orgsList = document.getElementById('orgsList');
+            orgsList.innerHTML = orgs.length 
+                ? orgs.map(o => `<a href="https://github.com/${o.login}" target="_blank"><img src="${o.avatar_url}" class="w-10 h-10 rounded-xl border border-slate-700 hover:border-blue-500 transition-colors cursor-pointer" title="${o.login}"></a>`).join('') 
+                : '<p class="text-xs text-slate-600 italic">No public organizations listed.</p>';
+
+            document.getElementById('content-repos').innerHTML = repos.length ? repos.map(repo => `
+                <a href="${repo.html_url}" target="_blank" class="content-card p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
+                                <i class="fa-regular fa-folder text-blue-500"></i>
+                            </div>
+                            <span class="text-[9px] font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 px-2 py-1 rounded-md border border-blue-500/20">${repo.language || 'Code'}</span>
+                        </div>
+                        <h4 class="font-bold text-base mb-2 truncate text-slate-100" title="${repo.name}">${repo.name}</h4>
+                        <p class="text-sm text-slate-400 mb-6 line-clamp-2 leading-relaxed">${repo.description || 'Public repository without a description.'}</p>
+                    </div>
+                    <div class="flex items-center gap-5 text-xs text-slate-500 font-semibold border-t border-slate-800/50 pt-4">
+                        <span class="flex items-center gap-1.5"><i class="fa-regular fa-star text-slate-600"></i> ${formatCount(repo.stargazers_count)}</span>
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-code-fork text-slate-600"></i> ${formatCount(repo.forks_count)}</span>
+                        <span class="flex items-center gap-1.5 ml-auto text-[10px] text-slate-600">${new Date(repo.updated_at).toLocaleDateString()}</span>
+                    </div>
+                </a>
+            `).join('') : '<p class="text-center col-span-full py-20 text-slate-600">No public repositories found.</p>';
+
+            document.getElementById('content-activity').innerHTML = events.length ? events.map(ev => {
+                const types = {
+                    PushEvent: { icon: 'fa-code-commit text-green-400', label: 'Committed to' },
+                    WatchEvent: { icon: 'fa-star text-yellow-400', label: 'Starred' },
+                    CreateEvent: { icon: 'fa-plus text-blue-400', label: 'Created' },
+                    PullRequestEvent: { icon: 'fa-code-pull-request text-purple-400', label: 'PR in' },
+                    IssueCommentEvent: { icon: 'fa-comment text-slate-400', label: 'Commented in' }
+                };
+                const config = types[ev.type] || { icon: 'fa-circle-dot text-slate-500', label: ev.type.replace('Event','') };
+                return `
+                    <div class="flex items-center gap-4 bg-[#12151c] p-4 rounded-2xl border border-slate-800/50 hover:border-slate-700 transition-colors shadow-sm">
+                        <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
+                            <i class="fa-solid ${config.icon}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium truncate">
+                                <span class="text-slate-500 font-normal">${config.label}</span> 
+                                <a href="https://github.com/${ev.repo.name}" target="_blank" class="text-slate-200 hover:text-blue-400 transition-colors">${ev.repo.name}</a>
+                            </p>
+                        </div>
+                        <span class="text-[10px] text-slate-600 font-bold shrink-0 uppercase tracking-tighter">${timeAgo(new Date(ev.created_at))}</span>
+                    </div>
+                `;
+            }).join('') : '<p class="text-center py-20 text-slate-600">No recent activity detected.</p>';
+
+            document.getElementById('content-gists').innerHTML = gists.length ? gists.map(g => `
+                <a href="${g.html_url}" target="_blank" class="content-card p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="p-2 bg-slate-900 rounded-lg"><i class="fa-solid fa-file-code text-slate-400"></i></div>
+                        <span class="text-sm font-bold truncate text-slate-200">${Object.keys(g.files)[0]}</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-6 truncate italic opacity-80">${g.description || 'Raw code snippet'}</p>
+                    <div class="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 border-t border-slate-800/50 pt-3">
+                        <span>${g.comments} Comments</span>
+                        <span class="ml-auto">${new Date(g.created_at).getFullYear()}</span>
+                    </div>
+                </a>
+            `).join('') : '<p class="text-center col-span-full py-20 text-slate-600">No public gists found.</p>';
+        }
+
+        function switchTab(tab) {
+            ['repos', 'activity', 'gists'].forEach(t => {
+                document.getElementById(`content-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('active');
+            });
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function formatCount(num) {
+            return num >= 1000 ? (num/1000).toFixed(1) + 'k' : num;
+        }
+
+        function timeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return "Now";
+            const intervals = { y: 31536000, mo: 2592000, d: 86400, h: 3600, m: 60 };
+            for (let i in intervals) {
+                const res = Math.floor(seconds / intervals[i]);
+                if (res >= 1) return res + i;
+            }
+        }
+
+        function showLoading(isLoading) {
+            document.getElementById('loadingState').classList.toggle('hidden', !isLoading);
+            document.getElementById('mainContent').classList.toggle('hidden', isLoading);
+            if (isLoading) document.getElementById('welcomeScreen').classList.add('hidden');
+        }
+
+        function showError(msg) {
+            const toast = document.getElementById('errorToast');
+            document.getElementById('errorMessage').innerText = msg;
+            toast.classList.remove('translate-y-40');
+            setTimeout(() => toast.classList.add('translate-y-40'), 5000);
+        }
+
+        document.getElementById('usernameInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') fetchGitHubData();
+        });
+    </script>
+</body>
+</html>
